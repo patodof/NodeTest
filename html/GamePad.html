@@ -1,0 +1,306 @@
+<html>
+	<head>
+		
+		<meta name="viewport" content=" width=device-width, initial-scale=1.0, maximum-scale=1.0, minimal-ui"/>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="chrome=1, IE=9">
+		<meta name="format-detection" content="telephone=no">
+		<meta name="HandheldFriendly" content="true" />
+		<meta name="robots" content="noindex,nofollow" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+		<meta name="apple-mobile-web-app-title" content="Phaser App">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	    <meta http-equiv="pragma" content="no-cache"/>
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="mobile-web-app-capable" content="yes">
+		<title>Demo Juego GamePad Remoto</title>
+		<!-- JQuery -->
+		<script type="text/javascript" src='/content/jquery/jquery-2.2.4.min.js'></script>
+		<!--Bootstrap -->
+		<link rel="stylesheet" type="text/css" href="/content/bootstrap/css/bootstrap.min.css">
+		<script type="text/javascript" src='/content/bootstrap/js/bootstrap.min.js'></script>
+		<!--MomentJS y Socket -->
+		<script type="text/javascript" src='/content/momentjs/moment.js'></script>
+		<script type="text/javascript" src='/socket.io/socket.io.js'></script>
+		<!-- Estilos Propios -->
+		<link rel="stylesheet" type="text/css" href="/css/estilo_web.css">
+
+		<!-- phaser engine -->
+		<script type="text/javascript" src='/content/phaser/phaser.min.js'></script>
+		<script src="/content/phaser-touch-control/phaser-touch-control.js"></script>
+
+	</head>
+	<body>
+		<!--header -->
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 navbar">
+			<div class="col-xs-4 col-sm-2 col-md-1 col-lg-1 col-xs-offset-4 col-sm-offset-5 col-md-offset-2 col-lg-offset-2">
+				<img src="/img/logo/bonus_logo.png" class="img-responsive" alt="Image">
+			</div>
+			<div class="col-xs-12 col-sm-12 col-md-9 col-lg-9 texto-navbar" >
+				JOYSTICK REMOTE SPACE SHOOTERS 
+			</div>
+		</div>
+		<!--Fin header -->
+		<!--Inputs Direccion -->
+		<!-- Debug -->
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 hidden" id="DebugContainer">
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 debugContainer">
+				<legend class="font-blanco">Debug Console</legend>
+				<ul id="ListaDebug" class="debugText">
+				</ul>
+
+			</div>
+		</div>
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12" id="ContenedorDatosUsuario">
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 bg-info">
+				<p>Ingrese un <b> Nombre de Usuario </b> Para Jugar</p>
+			</div>
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+				<div class="form-group">
+                	<label for="nombre" class="col-xs-12 col-sm-12 col-md-12 col-lg-12">Nombre Jugador</label>
+                    <div class="col-xs-12 col-sm-12 col-md-9 col-lg-9">
+                    	<input type="text" id="nombre" name="nombre" class="form-control" placeholder='Nombre Jugador'>
+                    </div>
+                    <input id="BtnEnviarNombre" type="button" class="btn btn-primary col-xs-12 col-sm-12 col-md-3 col-lg-3 " value="Jugar">
+                </div>
+			</div>
+		</div>
+		
+		<!-- Fin Debug -->
+		<div class="row" style='display: none; ' id="ContenedorJuego">
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12" >
+				<div id="gameCanvas" class="center-block">
+				</div>
+			</div>
+		</div>
+		
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 bg-info">
+			Creado y programado por Patricio Oyaneder 2016
+		</div>
+		
+		<!--Fin Inputs Direccion -->
+
+
+		<script type="text/javascript">
+			var game = new Phaser.Game(640, 480, Phaser.AUTO, 'gameCanvas')
+
+			var PhaserGame = function () {
+			    this.background;
+			    this.delayNetwork = 0 ; 
+			    this.delayMax = 10; 
+			    this.ButtonA ; 
+			    this.socket  ; 
+			};
+
+			PhaserGame.prototype = {
+
+			    init: function () {
+			        this.game.renderer.renderSession.roundPixels = true;
+			        this.physics.startSystem(Phaser.Physics.ARCADE);
+
+			    },
+			    preload : function (){
+					//precarga de todos los recursos que utilizaremos en el juego
+					game.load.image('background', '/img/sprites/Background.png');
+
+					//touch input
+					this.load.image('compass', '/content/phaser-touch-control/compass_rose.png');
+					this.load.image('touch_segment', '/content/phaser-touch-control/touch_segment.png');
+					this.load.image('touch', '/content/phaser-touch-control/touch.png');
+
+					game.load.spritesheet('ButtonA', '/img/sprites/ButtonFire_192x64.png', 64, 64, 2);
+				}, 
+
+				create : function(){
+					//responsive game
+					this.stage.disableVisibilityChange = true;
+
+		            this.scale.maxWidth = 640;
+		            this.scale.maxHeight = 480;
+		            this.scale.minWidth = 256;
+		            this.scale.minHeight = (256 * this.scale.maxHeight) / (this.scale.maxWidth);
+
+		 			
+		            if (this.game.device.desktop)
+		            {
+		                this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+		                this.scale.pageAlignHorizontally = true;
+		                this.scale.pageAlignVertically = true;
+		            } else {
+		                this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+		                this.scale.pageAlignHorizontally = true;
+		                this.scale.pageAlignVertically = true;
+		                this.scale.forceOrientation(false,true);
+		            }
+					//fin responsive game
+
+					//background
+					background = this.add.tileSprite(0, 0, this.world.width, this.world.height, 'background');
+            		background.scale.set(1);
+					//pad
+					this.game.touchControl = this.game.plugins.add(Phaser.Plugin.TouchControl);
+					this.game.touchControl.inputEnable();
+
+					
+					/*
+					this.ButtonA.x -= this.ButtonA.x*2; 
+					this.ButtonA.y -= this.ButtonA.y*2;
+					*/
+
+					//delay 
+					this.delayNetwork = this.delayMax ; 
+
+					//socket 
+					this.socket = io.connect(); 
+
+					//FireButton 
+					this.ButtonA = game.add.button(this.world.width, this.world.height , 'ButtonA', this.actionButtonA.bind(null, this.socket), 2, 1, 2, 1);
+					this.ButtonA.x -= this.ButtonA.width * 2 ;
+					this.ButtonA.y -= this.ButtonA.height* 2;  
+				}, 
+
+
+
+			    update: function () {
+			    	//repeat background
+					background.tilePosition.x = 0.5;
+					
+			    	var flag_delayAction = false ; 
+					if(this.delayNetwork <= this.delayMax){
+						this.delayNetwork += 5 ; 
+					}
+
+					else{
+						this.delayNetwork = 0 ; 
+						flag_delayAction = true ; 
+
+					}
+					//atributos a enviar
+					var speed = this.game.touchControl.speed;
+
+					var horizontal_direction = 0; 
+					var vertical_direction = 0 ; 
+					var flag_action = false ; 
+
+					if (this.game.touchControl.cursors.left) {
+						flag_action = true ; 
+                   		horizontal_direction = 1 ; 
+	                } else if (this.game.touchControl.cursors.right) {
+	                	flag_action = true ; 
+	                    horizontal_direction = 2; 
+	                }
+
+	                if (this.game.touchControl.cursors.up) {
+	                	flag_action = true ; 
+                    	vertical_direction = 1 ; 
+	                } else if (this.game.touchControl.cursors.down) {
+	                	flag_action = true ; 
+	                    vertical_direction = 2 ; 
+	                }
+
+	                if(flag_action & flag_delayAction ){
+	                	console.log(this.game.touchControl);
+	                	WriteDebug(speed, horizontal_direction, vertical_direction); 
+	                	this.socket.emit('PlayerJoystickMove', {
+	                		speed : speed, 
+	                		horizontal : horizontal_direction,
+	                		vertical : vertical_direction ,
+	                	}); 
+	                }
+			    }, 
+			    actionButtonA: function (socket) {
+			        //Evento Precionar Boton A
+			        WriteDebugText("Button A Precionado");
+			        socket.emit('PlayerButtonA', {}); 
+			    },
+
+			}
+			game.state.add('Game', PhaserGame, true);
+
+			function WriteDebug ( speed, horizontal_direction , vertical_direction ){
+				var debugList = $("#ListaDebug"); 
+				var now = moment();
+
+				
+				var current_time = now.format("DD-MM-YYYY HH:mm:ss"); 
+				var string_html_debug = "<li>"+current_time+" : <b>Speed </b> ("+speed.x+","+speed.y+")"; 
+
+				switch(horizontal_direction){
+					case 0 : 
+						break ;
+					case 1 : 
+						string_html_debug += " Input <b>Izquierda</b> precionado | "; 
+						break ;
+					case 2 : 
+						string_html_debug += " Input <b>Derecha</b> precionado | "; 
+						break ;
+				}
+				switch(vertical_direction){
+					case 0 : 
+						break ;
+					case 1 : 
+						string_html_debug += " Input <b>Arriba</b> precionado | "; 
+						break ;
+					case 2 : 
+						string_html_debug += " Input <b>Abajo</b> precionado | "; 
+						break ;
+				}
+				string_html_debug += "</li>"; 
+
+				debugList.append(string_html_debug); 
+				debugList.animate({ scrollTop: debugList.prop('scrollHeight') }, 10);
+			}
+			function WriteDebugText(text){
+				var debugList = $("#ListaDebug"); 
+				var now = moment();
+				var current_time = now.format("DD-MM-YYYY HH:mm:ss"); 
+				var string_html_debug = "<li>"+current_time+" : "+text+"</li>"; 
+				debugList.append(string_html_debug); 
+				debugList.animate({ scrollTop: debugList.prop('scrollHeight') }, 10);
+			}
+			$(document).on("ready",  function(){
+				
+				$(".input").on("click", function(){
+					var self = $(this); 
+					var string_type = self.attr("type-input"); 
+					
+
+					var string_html_debug = "<li>"; 
+					var now = moment();
+
+					var current_time = now.format("DD-MM-YYYY HH:mm:ss"); 
+					if(string_type == "1"){
+						string_html_debug += current_time+" : Input <b>Izquierda</b> precionado "; 
+					}
+					else if(string_type == "0"){
+						string_html_debug += current_time+" : Input <b>Derecha</b>  precionado "; 
+					}
+					string_html_debug += "</li>"; 
+					debugList.append(string_html_debug); 
+					debugList.animate({ scrollTop: debugList.prop('scrollHeight') }, 200);
+
+					
+				})
+
+			})
+			$(document).on("click", "#BtnEnviarNombre", function(){
+				var inputNombre = $("#nombre"); 
+				var socket = game.state.callbackContext.socket ; 
+				if(inputNombre.val() != ""){
+					socket.emit('PlayerSetName', {
+	                		nombre : inputNombre.val(), 
+	                		id : socket.id,
+                	});
+                	$("#ContenedorJuego").show('slow');
+                	$("#ContenedorDatosUsuario").hide('slow') ; 
+				}
+				else{
+					alert("Ingrese un nombre para poder Jugar"); 
+				}
+				
+				console.log(game.state.callbackContext.socket); 
+			})
+		</script>
+	</body>
+</html>

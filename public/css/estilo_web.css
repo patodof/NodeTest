@@ -1,0 +1,56 @@
+body{
+	font-family: helvetica ;
+}
+.navbar{
+	background-color: rgba(51,67,70, 0.9) ; 
+	padding: 10px 0; 
+	color: #FFF; 
+	font-weight: bold; 
+	border-radius: 0px; 
+	font-size: 18px ;
+}
+.texto-navbar {	
+	padding: 19px 0 0 0 ;
+}
+@media (max-width: 991px) {
+    .navbar {
+        text-align: center;
+        font-size: 22px;
+    }
+    .texto-navbar {	
+		padding: 11px 0 0 0 ;
+	}
+}
+
+.canvasJuego{
+	background-color: #D2D7D3; 
+}
+
+.debugContainer{
+	background-color: rgba(44, 62, 80, 0.9) ; 
+	margin: 20px 0;
+	color : #fff;
+	padding: 10px 15px ; 
+	-webkit-box-shadow: 7px 7px 0px 0px rgba(50, 50, 50, 0.75);
+	-moz-box-shadow:    7px 7px 0px 0px rgba(50, 50, 50, 0.75);
+	box-shadow:         7px 7px 0px 0px rgba(50, 50, 50, 0.75);
+}
+
+.debugText{
+	height: 150px;
+	max-height: 150px ; 
+	overflow: auto;
+	width: 100%; 
+	background-color: rgba(236, 240, 241, 0.8) ; 
+	border-radius: 2px; 
+	color: rgba(44, 62, 80, 1);
+}
+
+.font-blanco{
+	color: #fff !important;
+}
+
+.listaUsuarios{
+	font-size: 25px !important; 
+	font-weight: bold; 
+}

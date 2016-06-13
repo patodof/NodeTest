@@ -1,0 +1,9 @@
+Lista Comandos a Ejecutar
+
+*Crear el package.json con las opciones minimas para iniciar el proyecto
+npm init -y 
+
+*Instalamos Express y Socket.io en el Proyecto Actual
+npm install --save express
+npm install --save socket.io
+

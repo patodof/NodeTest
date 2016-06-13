@@ -1,0 +1,503 @@
+<html>
+	<head>
+		<meta name="viewport" content=" width=device-width, initial-scale=1.0, maximum-scale=1.0, minimal-ui"/>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="chrome=1, IE=9">
+		<title>Demo Juego GamePad Remoto</title>
+		<!-- JQuery -->
+		<script type="text/javascript" src='/content/jquery/jquery-2.2.4.min.js'></script>
+		<!--Bootstrap -->
+		<link rel="stylesheet" type="text/css" href="/content/bootstrap/css/bootstrap.min.css">
+		<script type="text/javascript" src='/content/bootstrap/js/bootstrap.min.js'></script>
+		<!--MomentJS y Socket -->
+		<script type="text/javascript" src='/content/momentjs/moment.js'></script>
+		<script type="text/javascript" src='/socket.io/socket.io.js'></script>
+		<!-- Estilos Propios -->
+		<link rel="stylesheet" type="text/css" href="/css/estilo_web.css">
+		<!-- phaser engine -->
+		<script type="text/javascript" src='/content/phaser/phaser.min.js'></script>
+	</head>
+	<body>
+		<!--header -->
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 navbar">
+			<div class="col-xs-4 col-sm-2 col-md-1 col-lg-1 col-xs-offset-4 col-sm-offset-5 col-md-offset-2 col-lg-offset-2">
+				<img src="/img/logo/bonus_logo.png" class="img-responsive" alt="Image">
+			</div>
+			<div class="col-xs-12 col-sm-12 col-md-9 col-lg-9 texto-navbar" >
+				REMOTE SPACE SHOOTERS
+			</div>
+		</div>
+		<!--Fin header -->
+		<!-- Debug -->
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 hidden" id="DebugContainer">
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 debugContainer">
+				<legend class="font-blanco">Debug Console</legend>
+				<ul id="ListaDebug" class="debugText">
+
+				</ul>
+
+			</div>
+		</div>
+		
+		<!-- Fin Debug -->
+		<!--Cuerpo -->
+		<div class="col-xs-12 col-sm-12 col-md-3 col-lg-3">
+			<!-- Usuarios Conectados -->
+			<legend>Usuarios Conectados</legend>
+			<ul id="ListaUsuariosOnline" class='listaUsuarios'>
+				
+			</ul>
+		</div>
+		<div class="col-xs-12 col-sm-12 col-md-9 col-lg-9">
+			<!-- Phaser Game -->
+			<script type="text/javascript">
+				var game = new Phaser.Game(800, 600, Phaser.AUTO, 'gameCanvas' )
+
+				var PhaserGame = function () {
+				    this.background;
+				    this.player ; 
+				    this.bullets ; 
+				    this.bulletTimer  = 0 ; 
+				    this.BulletCD  = 300 ; 
+
+				    //tiempo maximo de espera movimiento player
+				    this.flagMovePlayerX = false;  
+				    this.flagMovePlayerY = false; 
+				    this.timerMovePlayer = 0 ; 
+				    this.timerMaxMovePlayer = 200 ; 
+
+				    //enemys
+				    this.enemys ; 
+				    this.enemy_idle_animation ; 
+				    this.enemys_speed = 3000 ;
+				    this.tween_enemys  ;  
+
+				    //Score 
+				    this.scoreString = '';
+				    this.score = 0 ; 
+				    this.scoreText;
+				    //Level 
+				    this.levelString = '';
+				    this.level = 1 ; 
+				    this.levelText;
+				    //Estado 
+				    this.stateText;
+				    //socket
+				    this.socket ; 
+
+				    this.list_player = [] ; 
+
+				    this.flag_game_over = false; 
+				};
+				
+				PhaserGame.prototype = {
+					init: function () {
+			        this.game.renderer.renderSession.roundPixels = true;
+			        this.physics.startSystem(Phaser.Physics.ARCADE);
+
+				    },
+				    preload : function (){
+						//precarga de todos los recursos que utilizaremos en el juego
+						game.load.image('background', '/img/sprites/Background.png');
+
+						//precarga de todos los recursos que utilizaremos en el juego
+						game.load.image('SpaceShip', '/img/sprites/SpaceShip_32x32.png'); 
+						game.load.image('bullet_player', '/img/sprites/bullet_player_8x8.png'); 
+
+						game.load.image('background', '/img/sprites/Background.png');
+
+						game.load.spritesheet('enemy', '/img/sprites/enemy_32x32.png', 32, 32, 2);
+
+					}, 
+
+					create : function(){
+						//background
+						this.background = this.add.tileSprite(0, 0, this.world.width, this.world.height, 'background');
+	            		this.background.scale.set(1);
+
+						//player
+						this.player = game.add.sprite(game.world.centerX,game.world.height, 'SpaceShip'); 
+						this.player.y -= this.player.height * 2 ; 
+						this.player.anchor.setTo(0.5,0.5);
+						game.physics.enable(this.player, Phaser.Physics.ARCADE);
+						this.player.body.collideWorldBounds=true;
+						this.player.visible = false ; 
+
+						//  Balas del Jugador 30 balas como maximo 
+					    this.bullets = game.add.group();
+					    this.bullets.enableBody = true;
+					    this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
+					    this.bullets.createMultiple(30, 'bullet_player');
+					    this.bullets.setAll('anchor.x', 0.5);
+					    this.bullets.setAll('anchor.y', 1);
+					    this.bullets.setAll('outOfBoundsKill', true);
+					    this.bullets.setAll('checkWorldBounds', true);
+
+						//grupo de enemigos
+						this.enemys = game.add.group();
+						this.enemys.enableBody = true;
+    					this.enemys.physicsBodyType = Phaser.Physics.ARCADE;
+
+    					
+
+    					//Level
+    					this.levelString = 'Level ';
+    					this.levelText = game.add.text(10 , 10, this.levelString + this.level, { font: 'bold 20px Helvetica', fill: '#fff' });
+
+    					//score
+    					this.scoreString = 'Score : ';
+    					this.scoreText = game.add.text(this.levelText.width + 100 , 10, this.scoreString + this.score, { font: 'bold 20px Helvetica', fill: '#fff' });
+
+    					this.stateText = game.add.text(game.world.centerX,game.world.centerY,' ', { font: 'bold 50px Helvetica', fill: '#fff', align : 'center' });
+					    this.stateText.anchor.setTo(0.5, 0.5);
+					    this.stateText.visible = false;
+
+						//socket 
+						this.socket = io.connect();
+						this.setEventHandlers(this);
+
+					}, 
+
+					respawnEnemys : function (){
+
+						for (var y = 0; y < 4; y++)
+					    {
+					        for (var x = 0; x < 10; x++)
+					        {
+					        	//cada enemy tiene una separacion de 48 x 50
+					            var enemy = this.enemys.create(x * 48, y * 50, 'enemy');
+					            enemy.anchor.setTo(0.5, 0.5);
+					            enemy.animations.add('idle', [ 0, 1], 6, true);
+					            enemy.play('idle');
+					            enemy.body.moves = false;
+					        }
+					    }
+
+					    this.enemys.x = 40;
+					    this.enemys.y = 50;
+
+					    game.tweens.removeAll();
+					    this.tween_enemys = game.add.tween(this.enemys).to( { x: game.world.width - this.enemys.width }, this.enemys_speed, Phaser.Easing.Linear.None, true, 0, 1000, true);
+					    //al terminar de reproducirse la animacion se ejecuta la siguiente funcion
+					    this.tween_enemys.onRepeat.add(this.decenderEnemys , this);
+
+
+					}, 
+					decenderEnemys : function () {
+						console.log("decendiendo enemigos");
+						this.enemys.y += 10 ; 
+					}, 
+					update : function(){
+						
+
+				        if(this.list_player.length > 0){
+				        	this.stateText.visible = false; 
+							this.stateText.text = '' ; 
+				        	var player_local = this.player  ; 
+							if(this.flagMovePlayerX || this.flagMovePlayerY ){
+								if(this.timerMovePlayer < this.timerMaxMovePlayer){
+									this.timerMovePlayer += 10; 
+								}
+								else{
+									this.flagMovePlayerX = false ; 
+									this.flagMovePlayerY = false ; 
+
+								}
+							}
+
+							if(this.flagMovePlayerX == false ){
+								//console.log("Comunicacion Perdida ... Denteniendo movimiento Player");
+								this.player.body.velocity.x = 0 ; 
+							}
+							
+					        game.physics.arcade.overlap(this.bullets, this.enemys, this.BulletEnemyEventHandler, null, this);
+				        }
+				        else{
+				        	this.stateText.text = "Esperando Jugador"; 
+				        	this.stateText.visible = true; 
+				        	this.player.visible = false ;
+
+				        	if(this.enemys.countLiving() > 0){
+				        		//destruimos todos los enemigos
+				        		console.log("eliminando enemigos...")
+				        		this.enemys.forEach(function(enemy) {  enemy.kill();});
+				        	}
+				        	
+				        }
+
+				        if( (this.enemys.y + this.enemys.height) >= this.player.y ){
+				        	this.GameOver();
+				        }
+						/*
+						if(this.flagMovePlayerY == false){
+							this.player.body.velocity.y = 0 ;
+						}
+						player_local.x = this.last_position.x ;
+						player_local.y = this.last_position.y ; 
+						*/
+						/*
+						this.socket.on('inputNewEvent', function(data){
+							console.log("Mensaje de Input Recibido type -> ");
+							console.log(data); 
+							//WriteDebug(data.req.speed, data.req.horizontal, data.req.vertical) 
+							switch(data.req.horizontal){
+								case 0 : 
+									player_local.body.velocity.x = 0 ; 
+									break ;
+								case 1 ,2  : 
+									player_local.body.velocity.x = data.req.speed.x;; 
+									break ;
+								
+							}
+							switch(data.req.vertical){
+								case 0 : 
+									player_local.body.velocity.y = 0 ; 
+									break ;
+								case 1 ,2  : 
+									player_local.body.velocity.y = data.req.speed.y ; 
+									break ;
+							}
+						}) ;
+						*/
+					}, 
+					setEventHandlers : function(game){
+						this.socket.on('NewPlayer', this.onNewPlayer.bind(null, this.socket, game) ); 
+						this.socket.on('PlayerDisconnect', this.onPlayerDisconnect.bind(null, this.socket, game) ); 
+						this.socket.on('MovePlayer', this.movePlayer.bind(null, this.socket, game) ); 
+
+						this.socket.on('ButtonA', this.fireBullet.bind(null, game)); 
+					},
+
+					onNewPlayer : function (socket, game, data){
+						console.log("Nuevo Socket en Sistema datos ->");
+						console.log(data); 
+						if(game.list_player.length == 0){
+							game.respawnEnemys(); 
+							game.player.visible = true ; 
+						}
+						game.list_player.push({nombre : data.nombre, id : data.id}); 
+						console.log("Lista de Usuarios ") ;
+						console.log(game.list_player)
+						var listUsuarioOnline = $("#ListaUsuariosOnline"); 
+						var html_usuario = "<li id='player_"+data.id.replace('#', '').replace("/", "").replace("@","")+"'><b>"+data.nombre+"</b></li>"; 
+						listUsuarioOnline.append(html_usuario);
+
+					},
+					onPlayerDisconnect : function(socket, game, data){
+						//remover al jugador de la lista de jugadores activos
+						console.log("Usuario Desconectado id -> "); 
+						var id_string = data.id.replace('#', '').replace("/", "").replace("@","") ; 
+						$("#player_"+id_string).hide('slow', function(){ $("#player_"+id_string).remove() }) ; 
+						var player = game.playerById(id_string); 
+						console.log("player buscado ->");  
+						console.log(player); 
+						console.log("index ->"+game.list_player.indexOf(player));
+						console.log("splice");
+						console.log(game.list_player.splice(game.list_player.indexOf(player), 1 ))
+						game.list_player = game.list_player.splice(game.list_player.indexOf(player), 1 ); 
+						console.log("player list ->");  
+						console.log(game.list_player); 
+					}, 
+
+					movePlayer: function (socket, game, data){
+						console.log("Data Recibida");
+						console.log(data); 
+
+						game.timerMovePlayer = 0 ; 
+						
+						var factorMovimiento = 2 ; 
+						var velocidad_x = 0 ; 
+						//var velocidad_y = 0 ; 
+						switch(data.req.horizontal){
+							case 0 : 
+								game.flagMovePlayerX = false ;
+								break ;
+							case 2 : 
+								game.flagMovePlayerX = true ; 
+								velocidad_x =  Math.abs(data.req.speed.x)*factorMovimiento  ;
+								game.player.body.velocity.x = velocidad_x; 
+								break ;
+							case 1 : 
+								game.flagMovePlayerX = true ; 
+								velocidad_x = Math.abs(data.req.speed.x)*(-1 * factorMovimiento)
+								game.player.body.velocity.x = velocidad_x; 
+								break ; 
+							
+						}
+
+						if(game.flag_game_over == true){
+							game.iniciarJuego(); 
+						}
+						/*
+						switch(data.req.vertical){
+							case 0 : 
+								game.flagMovePlayerY = false ; 
+								break ;
+							case 2 : 
+								game.flagMovePlayerY = true ; 
+								velocidad_y =  Math.abs(data.req.speed.y)*factorMovimiento ; 
+								game.player.body.velocity.y = velocidad_y ; 
+								break ;
+							case 1 : 
+								game.flagMovePlayerY = true ; 
+								velocidad_y = Math.abs(data.req.speed.y)*(-1 * factorMovimiento); 
+								game.player.body.velocity.y = velocidad_y ; 
+								break ;
+						}
+						*/
+					},
+
+					fireBullet : function (gameActual){
+						console.log("disparando Bala")
+						console.log(gameActual.bulletTimer ); 
+						if (gameActual.time.now > gameActual.bulletTimer)
+					    {
+					        //  Obtenemos la primera bala del grupo 
+					        var bullet = gameActual.bullets.getFirstExists(false);
+
+					        if (bullet)
+					        {
+					            //  And fire it
+					            bullet.reset(gameActual.player.x, gameActual.player.y - gameActual.player.height/2);
+					            bullet.body.velocity.y = -400;
+					            gameActual.bulletTimer = gameActual.time.now + gameActual.BulletCD;
+					        }
+					    }
+					    if(gameActual.flag_game_over == true){
+							gameActual.iniciarJuego(); 
+						}
+					}, 
+
+					BulletEnemyEventHandler : function(bullet, alien) {
+					    //  When a bullet hits an alien we kill them both
+					    bullet.kill();
+					    alien.kill();
+
+					    //  And create an explosion
+					    /*
+					    var explosion = explosions.getFirstExists(false);
+					    explosion.reset(alien.body.x, alien.body.y);
+					    explosion.play('kaboom', 30, false, true);
+						*/
+						console.log("aliens vivos"); 
+						console.log(this.enemys.countLiving())
+						
+					    if (this.enemys.countLiving() == 0)
+					    {
+
+					        this.score += 1000;
+					        //scoreText.text = scoreString + score;
+					        this.enemys_speed -= 200 ; 
+					        this.respawnEnemys(); 
+					        this.level += 1; 
+					        this.levelText.text = this.levelString + this.level; 
+					        /*
+					        enemyBullets.callAll('kill',this);
+					        stateText.text = " You Won, \n Click to restart";
+					        stateText.visible = true;
+
+					        //the "click to restart" handler
+					        game.input.onTap.addOnce(restart,this);
+					        */
+					    }
+					    this.score += 20;
+    					this.scoreText.text = this.scoreString + this.score;
+					},
+					iniciarJuego : function(){
+						this.respawnEnemys(); 
+						this.flag_game_over = false;
+						this.player.visible = true ; 
+						this.level = 1 ; 
+						this.score = 0 ; 
+						console.log(this.levelText); 
+						console.log(this.levelString); 
+						console.log(this.level);
+						this.levelText.text = this.levelString + this.level; 
+						this.scoreText.text = this.scoreString + this.score;
+						
+					},
+					GameOver : function(){
+						this.player.visible = false ; 
+						this.stateText.text=" GAME OVER \n Click to restart";
+				        this.stateText.visible = true;
+				        if(this.enemys.countLiving() > 0){
+			        		//destruimos todos los enemigos
+			        		console.log("eliminando enemigos...")
+			        		this.enemys.forEach(function(enemy) {  enemy.kill();});
+			        	}
+
+				        //the "click to restart" handler
+				        game.input.onTap.addOnce(this.iniciarJuego,this);
+				        this.flag_game_over = true ; 
+					},
+					playerById : function (id) {
+				  		for (var i = 0; i < this.list_player.length; i++) {
+				    		if (this.list_player[i].id === id) {
+					      		return this.list_player[i]
+					    	}
+					  	}
+				  		return false
+					}, 
+
+
+				}
+
+				game.state.add('Game', PhaserGame, true);
+
+				$(document).on("ready", function(){
+					var socket  = io.connect();
+
+					socket.on('inputNewEvent', function(data){
+						console.log("Mensaje de Input Recibido type -> ");
+						console.log(data); 
+						console.log(game);
+						game.state.callbackContext.__proto__.movePlayer(data); 
+					}) ;
+				})
+			</script>
+			<!-- Fin Phaser Game -->
+			<div id="gameCanvas" ></div>
+		</div>
+		<!--Fin Cuerpo -->
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 bg-info">
+			Creado y programado por Patricio Oyaneder 2016
+		</div>
+		
+
+		<script type="text/javascript">
+
+			function WriteDebug ( speed, horizontal_direction , vertical_direction ){
+				var debugList = $("#ListaDebug"); 
+				var now = moment();
+
+				var current_time = now.format("DD-MM-YYYY HH:mm:ss"); 
+				var string_html_debug = "<li>"+current_time+" : <b>Speed </b> ("+speed.x+","+speed.y+")"; 
+
+				switch(horizontal_direction){
+					case 0 : 
+						break ;
+					case 1 : 
+						string_html_debug += " Input <b>Izquierda</b> precionado | "; 
+						break ;
+					case 2 : 
+						string_html_debug += " Input <b>Derecha</b> precionado | "; 
+						break ;
+				}
+				switch(vertical_direction){
+					case 0 : 
+						break ;
+					case 1 : 
+						string_html_debug += " Input <b>Arriba</b> precionado | "; 
+						break ;
+					case 2 : 
+						string_html_debug += " Input <b>Abajo</b> precionado | "; 
+						break ;
+				}
+				string_html_debug += "</li>"; 
+
+				debugList.append(string_html_debug); 
+				debugList.animate({ scrollTop: debugList.prop('scrollHeight') }, 10);
+			}
+		</script>
+	</body>
+</html>
