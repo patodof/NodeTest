@@ -12,9 +12,10 @@ users = [] ;
 connections  = [] ; 
 
 //Parametros de configuracion del servidor
-var ip_server = '192.168.0.4'; 
+var ip_server = process.env.OPENSHIFT_NODEJS_IP || '192.168.0.4'; 
+
 //var ip_server = 'localhost'; 
-var port = 8080 ; 
+var port = process.env.OPENSHIFT_NODEJS_PORT || 8080 ; 
 
 //Servir Direcciones Web
 app.get('/', function(req, res){

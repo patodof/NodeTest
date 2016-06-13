@@ -1,5 +1,5 @@
 {
-  "name": "ClienteServidorControl",
+  "name": "NodeTest",
   "version": "1.0.0",
   "description": "NodeJs Phaser Game Test",
   "main": "app.js",
