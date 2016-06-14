@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "NodeJs Phaser Game Test",
   "main": "app.js",
-  "scripts": {
-    "start": "app.js"
-  },
   "keywords": [],
   "author": "Patricio Oyaneder",
   "license": "ISC",
