@@ -1,0 +1,256 @@
+<html>
+	<head>
+		
+		<meta name="viewport" content=" width=device-width, initial-scale=1.0, maximum-scale=1.0, minimal-ui"/>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="chrome=1, IE=9">
+		<meta name="format-detection" content="telephone=no">
+		<meta name="HandheldFriendly" content="true" />
+		<meta name="robots" content="noindex,nofollow" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+		<meta name="apple-mobile-web-app-title" content="Phaser App">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	    <meta http-equiv="pragma" content="no-cache"/>
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="mobile-web-app-capable" content="yes">
+		<title>Demo Juego Gyro </title>
+		<!-- JQuery -->
+		<script type="text/javascript" src='/content/jquery/jquery-2.2.4.min.js'></script>
+		<!--Bootstrap -->
+		<link rel="stylesheet" type="text/css" href="/content/bootstrap/css/bootstrap.min.css">
+		<script type="text/javascript" src='/content/bootstrap/js/bootstrap.min.js'></script>
+		<!--MomentJS y Socket -->
+		<script type="text/javascript" src='/content/momentjs/moment.js'></script>
+		<script type="text/javascript" src='/socket.io/socket.io.js'></script>
+		<!-- Estilos Propios -->
+		<link rel="stylesheet" type="text/css" href="/css/estilo_web.css">
+
+		<!-- phaser engine -->
+		<script type="text/javascript" src='/content/phaser/phaser.min.js'></script>
+		<!-- Gyro JS -->
+		<script src = "/gyro/gyro.min.js"></script>
+
+	</head>
+	<body>
+		<!--header -->
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 navbar">
+			<div class="col-xs-4 col-sm-2 col-md-1 col-lg-1 col-xs-offset-4 col-sm-offset-5 col-md-offset-2 col-lg-offset-2">
+				<img src="/img/logo/bonus_logo.png" class="img-responsive" alt="Image">
+			</div>
+			<div class="col-xs-12 col-sm-12 col-md-9 col-lg-9 texto-navbar" >
+				GYROCONTROLLER
+			</div>
+		</div>
+		<!--Fin header -->
+		<!--Inputs Direccion -->
+		<!-- Debug -->
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 hidden" id="DebugContainer">
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 debugContainer">
+				<legend class="font-blanco">Debug Console</legend>
+				<ul id="ListaDebug" class="debugText">
+				</ul>
+
+			</div>
+		</div>
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12" id="ContenedorDatosUsuario">
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 bg-info">
+				<p>Ingrese un <b> Nombre de Usuario </b> Para Jugar</p>
+			</div>
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+				<div class="form-group">
+                	<label for="nombre" class="col-xs-12 col-sm-12 col-md-12 col-lg-12">Nombre Jugador</label>
+                    <div class="col-xs-12 col-sm-12 col-md-9 col-lg-9">
+                    	<input type="text" id="nombre" name="nombre" class="form-control" placeholder='Nombre Jugador'>
+                    </div>
+                    <input id="BtnEnviarNombre" type="button" class="btn btn-primary col-xs-12 col-sm-12 col-md-3 col-lg-3 " value="Jugar">
+                </div>
+			</div>
+		</div>
+		
+		<!-- Fin Debug -->
+		<div class="row" style='display: none; ' id="ContenedorJuego">
+			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12" >
+				<div id="gameCanvas" class="center-block">
+				</div>
+			</div>
+		</div>
+		
+		<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 bg-info">
+			Creado y programado por Patricio Oyaneder 2016
+		</div>
+		
+		<!--Fin Inputs Direccion -->
+
+
+		<script type="text/javascript">
+			var game = new Phaser.Game(640, 480, Phaser.AUTO, 'gameCanvas')
+
+			var PhaserGame = function () {
+			    this.background;
+			    this.delayNetwork = 0 ; 
+			    this.delayMax = 10; 
+			    this.ButtonA ; 
+			    this.socket  ; 
+			    this.gyroTrack = false ; 
+			    this.gyroOn = false ; 
+			    this.ColorBacground = '#2ac6e8'; 
+			    this.ColorBacgroundShake = '#aef1ff'; 
+			    this.shakeTimer ; 
+			    this.shakeCD = 500 ; 
+			    this.shakeFlag = false ; 
+			    this.acelerometroLast = { x : 0, y : 0 , z : 0}; 
+			    this.shakeTrashHold = 7 ;  
+			};
+
+			PhaserGame.prototype = {
+
+			    init: function () {
+			        this.game.renderer.renderSession.roundPixels = true;
+			        this.physics.startSystem(Phaser.Physics.ARCADE);
+
+			    },
+			    preload : function (){
+					//precarga de todos los recursos que utilizaremos en el juego
+				}, 
+
+				create : function(){
+					//socket 
+					this.socket = io.connect(); 
+					var localSocket = this.socket ;
+					//responsive game
+					this.stage.disableVisibilityChange = true;
+
+		            this.scale.maxWidth = 640;
+		            this.scale.maxHeight = 480;
+		            this.scale.minWidth = 256;
+		            this.scale.minHeight = (256 * this.scale.maxHeight) / (this.scale.maxWidth);
+
+		 			
+		            if (this.game.device.desktop)
+		            {
+		                this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+		                this.scale.pageAlignHorizontally = true;
+		                this.scale.pageAlignVertically = true;
+		            } else {
+		                this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+		                this.scale.pageAlignHorizontally = true;
+		                this.scale.pageAlignVertically = true;
+		                this.scale.forceOrientation(false,true);
+		            }
+
+					game.stage.backgroundColor = this.ColorBacground; 
+
+					//delay 
+					this.delayNetwork = this.delayMax ; 
+
+					// setting gyroscope update frequency
+			        gyro.frequency = 100;
+			        
+				}, 
+
+
+
+			    update: function () {
+			    	if(this.gyroTrack == true){
+			    		console.log("Start Track Gyro ");
+			    		gyro.startTracking(function(o) {
+
+			          		//para le eje y -> o.beta
+			          		/*
+			          		
+			          		if(o.gamma < -1 || o.gamma > 1 ){
+			          			
+			          			WriteDebugText("Gamma Actual "+o.gamma );
+					          	localSocket.emit('PlayerGyroMove', {
+			                		gamma : o.gamma, 
+			                	});
+					          	if(gamma > 1){
+			                		moverColorBackground(2); 
+			                	}
+			                	else if(gamma < -1){
+			                		moverColorBackground(0); 
+			                	}
+			          		}
+			          		else{
+			          			moverColorBackground(0); 
+			          		}
+			          		*/
+				        });	
+				        this.gyroTrack = false ; 
+				        this.gyroOn = true ; 
+				        this.shakeTimer = this.time.now + this.shakeCD; 
+				        var gyroInformation = gyro.getOrientation() ; 
+				        this.acelerometroLast = {x :gyroInformation.x , y: gyroInformation.y , z: gyroInformation.z}
+			    	}
+
+			    	if(this.gyroOn){
+			    		var gyroInformation = gyro.getOrientation() ; 
+			    		if(this.time.now >= this.shakeTimer ){
+			    			
+			    			
+			    			var speedDevice = Math.abs(gyroInformation.x +gyroInformation.y + gyroInformation.z - (this.acelerometroLast.x+this.acelerometroLast.y+this.acelerometroLast.z) ) 
+			    			if(speedDevice > this.shakeTrashHold){
+			    				game.stage.backgroundColor = this.ColorBacgroundShake; 
+			    				this.OnShake(this.socket); 
+			    				//disparar
+			    			}else{
+			    				game.stage.backgroundColor = this.ColorBacground; 
+			    			}
+			    			this.shakeTimer = this.time.now + this.shakeCD; 
+			    			this.acelerometroLast = {x :gyroInformation.x , y: gyroInformation.y , z: gyroInformation.z}
+			    		}
+
+			    		if(gyroInformation.gamma >= 2 || gyroInformation.gamma <= -2){
+			    			this.socket.emit('PlayerGyroMove', {
+		                		gamma : gyroInformation.gamma, 
+		                	});
+			    		}
+			    		
+			    	}
+
+			    }, 
+
+
+			    OnShake : function (socket) {
+			        //Evento Precionar Boton A
+			        socket.emit('PlayerButtonA', {}); 
+			    },
+
+			}
+			game.state.add('Game', PhaserGame, true);
+
+			function moverColorBackground ( sentido ){
+				game.state.callbackContext.direccionSiguienteBackground = sentido; 
+			}
+
+			function WriteDebugText(text){
+				var debugList = $("#ListaDebug"); 
+				var now = moment();
+				var current_time = now.format("DD-MM-YYYY HH:mm:ss"); 
+				var string_html_debug = "<li>"+current_time+" : "+text+"</li>"; 
+				debugList.append(string_html_debug); 
+				debugList.animate({ scrollTop: debugList.prop('scrollHeight') }, 10);
+			}
+			
+			$(document).on("click", "#BtnEnviarNombre", function(){
+				var inputNombre = $("#nombre"); 
+				var socket = game.state.callbackContext.socket ; 
+				if(inputNombre.val() != ""){
+					socket.emit('PlayerSetName', {
+	                		nombre : inputNombre.val(), 
+	                		id : socket.id,
+                	});
+                	$("#ContenedorJuego").show('slow');
+                	$("#ContenedorDatosUsuario").hide('slow') ; 
+				}
+				else{
+					alert("Ingrese un nombre para poder Jugar"); 
+				}
+				
+				console.log(game.state.callbackContext.socket); 
+				game.state.callbackContext.gyroTrack = true ; 
+			})
+		</script>
+	</body>
+</html>

@@ -264,7 +264,9 @@
 						this.socket.on('NewPlayer', this.onNewPlayer.bind(null, this.socket, game) ); 
 						this.socket.on('PlayerDisconnect', this.onPlayerDisconnect.bind(null, this.socket, game) ); 
 						this.socket.on('MovePlayer', this.movePlayer.bind(null, this.socket, game) ); 
-
+						this.socket.on('MovePlayerVirtualJoystick', this.movePlayerVirtualJoystick.bind(null, this.socket, game) ); 
+						this.socket.on('MovePlayerGyro', this.movePlayerGyro.bind(null, this.socket, game) ); 
+						
 						this.socket.on('ButtonA', this.fireBullet.bind(null, game)); 
 					},
 
@@ -347,6 +349,63 @@
 						*/
 					},
 
+					movePlayerVirtualJoystick: function (socket, game, data){
+						console.log("Data Virtual Joystick Recibida");
+						console.log(data); 
+
+						game.timerMovePlayer = 0 ; 
+						
+						var factorMovimiento = 2 ; 
+						//var velocidad_y = 0 ; 
+
+						//fueza (force) maxima de virtual joystick es 1, es necesario agregar una correccion de velocidad 
+						//la velocidad maxima alcanzada por el otro joystick es de 100 
+						velocidad = 100 ; 
+						var velocidadMovimiento = data.force*velocidad*factorMovimiento ; 
+						if( data.rotation <= -1.5 & data.rotation >= -3.2 ){
+							// izquierda superior 
+							game.flagMovePlayerX = true ; 
+							velocidadMovimiento *= -1;
+
+						} else if( data.rotation > 1.5 & data.rotation <= 3.2 ){
+							// izquierda inferior 
+							velocidadMovimiento *= -1;
+							game.flagMovePlayerX = true ; 
+
+						} else if( data.rotation > -1.5 & data.rotation <= 1.5 ){
+							// derecha 
+							velocidadMovimiento *= 1;
+							game.flagMovePlayerX = true ; 
+
+						}
+						game.player.body.velocity.x  = velocidadMovimiento ; 
+
+						if(game.flag_game_over == true){
+							game.iniciarJuego(); 
+						}
+
+					},
+					movePlayerGyro: function (socket, game, data){
+						console.log("Data Gyro Recibida");
+						console.log(data); 
+
+						game.timerMovePlayer = 0 ; 
+						
+						var factorMovimiento = 4 ; 
+						//var velocidad_y = 0 ; 
+
+						//fueza (force) maxima de virtual joystick es 1, es necesario agregar una correccion de velocidad 
+						//la velocidad maxima alcanzada por el otro joystick es de 100 
+						velocidad = 100 ; 
+						var velocidadMovimiento = data.gamma*factorMovimiento ; 
+						
+						game.player.body.velocity.x  = velocidadMovimiento ; 
+
+						if(game.flag_game_over == true){
+							game.iniciarJuego(); 
+						}
+
+					},
 					fireBullet : function (gameActual){
 						console.log("disparando Bala")
 						console.log(gameActual.bulletTimer ); 
