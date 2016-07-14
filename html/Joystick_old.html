@@ -3,6 +3,7 @@
 		
 		<meta name="viewport" content=" width=device-width, initial-scale=1.0, maximum-scale=1.0, minimal-ui"/>
 		<meta charset="utf-8">
+
 		<meta http-equiv="X-UA-Compatible" content="chrome=1, IE=9">
 		<meta name="format-detection" content="telephone=no">
 		<meta name="HandheldFriendly" content="true" />
@@ -14,8 +15,9 @@
 	    <meta http-equiv="pragma" content="no-cache"/>
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="mobile-web-app-capable" content="yes">
-		<title>Demo Juego Gyro </title>
-		<!-- JQuery -->
+
+		<title>Demo Juego GamePad Remoto</title>
+		<!-- JQuery 		<script type="text/javascript" src='http://examples.phaser.io/_site/js/jquery-2.0.3.min.js'></script> -->
 		<script type="text/javascript" src='/content/jquery/jquery-2.2.4.min.js'></script>
 		<!--Bootstrap -->
 		<link rel="stylesheet" type="text/css" href="/content/bootstrap/css/bootstrap.min.css">
@@ -26,11 +28,19 @@
 		<!-- Estilos Propios -->
 		<link rel="stylesheet" type="text/css" href="/css/estilo_web.css">
 
-		<!-- phaser engine -->
-		<script type="text/javascript" src='/content/phaser/phaser.min.js'></script>
-		<!-- Gyro JS -->
-		<script src = "/gyro/gyro.min.js"></script>
-
+		<!-- phaser engine 
+		
+		<script src="http://examples.phaser.io/_site/phaser/blob.js"></script>
+		<script src="http://examples.phaser.io/_site/phaser/canvas-to-blob.js"></script>
+		<script src="http://examples.phaser.io/_site/phaser/filesaver.js"></script>
+		<script src="http://examples.phaser.io/_site/phaser/embed.js"></script>
+	
+		<script type="text/javascript" src='/content/phaser/phaser.min_2.3.0.js' type="text/javascript"  ></script>
+		<script src="/content/virtualJoystick/VirtualJoystick.js" type="text/javascript" ></script>
+		-->
+		
+		<script src="http://examples.phaser.io/_site/phaser/phaser.2.3.1.virtual-joystick.min.js"></script>
+		
 	</head>
 	<body>
 		<!--header -->
@@ -39,7 +49,7 @@
 				<img src="/img/logo/bonus_logo.png" class="img-responsive" alt="Image">
 			</div>
 			<div class="col-xs-12 col-sm-12 col-md-9 col-lg-9 texto-navbar" >
-				GYROCONTROLLER
+				JOYSTICK REMOTE
 			</div>
 		</div>
 		<!--Fin header -->
@@ -71,7 +81,7 @@
 		<!-- Fin Debug -->
 		<div class="row" style='display: none; ' id="ContenedorJuego">
 			<div class="col-xs-12 col-sm-12 col-md-12 col-lg-12" >
-				<div id="gameCanvas" class="center-block">
+				<div id="phaser-example" class="center-block">
 				</div>
 			</div>
 		</div>
@@ -84,23 +94,20 @@
 
 
 		<script type="text/javascript">
-			var game = new Phaser.Game(640, 480, Phaser.AUTO, 'gameCanvas')
+
+			var game = new Phaser.Game(640, 480, Phaser.AUTO, 'phaser-example')
 
 			var PhaserGame = function () {
 			    this.background;
 			    this.delayNetwork = 0 ; 
 			    this.delayMax = 10; 
-			    this.ButtonA ; 
+			    //this.ButtonA ; 
 			    this.socket  ; 
-			    this.gyroTrack = false ; 
-			    this.gyroOn = false ; 
-			    this.ColorBacground = '#2ac6e8'; 
-			    this.ColorBacgroundShake = '#aef1ff'; 
-			    this.shakeTimer ; 
-			    this.shakeCD = 500 ; 
-			    this.shakeFlag = false ; 
-			    this.acelerometroLast = { x : 0, y : 0 , z : 0}; 
-			    this.shakeTrashHold = 7 ;  
+
+			    //virtual joystick
+			    this.pad;
+			    this.stick;
+			    this.buttonA;
 			};
 
 			PhaserGame.prototype = {
@@ -112,13 +119,17 @@
 			    },
 			    preload : function (){
 					//precarga de todos los recursos que utilizaremos en el juego
+					game.load.image('background', '/img/sprites/Background.png');
+
+					//virtual joystick
+					this.load.atlas('generic', '/content/virtualJoystick/generic-joystick.png', '/content/virtualJoystick/generic-joystick.json');
 				}, 
 
 				create : function(){
 					//socket 
 					this.socket = io.connect(); 
-					var localSocket = this.socket ;
 					//responsive game
+
 					this.stage.disableVisibilityChange = true;
 
 		            this.scale.maxWidth = 640;
@@ -138,92 +149,102 @@
 		                this.scale.pageAlignVertically = true;
 		                this.scale.forceOrientation(false,true);
 		            }
+					//fin responsive game
 
-					game.stage.backgroundColor = this.ColorBacground; 
+					//background
+					background = this.add.tileSprite(0, 0, this.world.width, this.world.height, 'background');
+            		background.scale.set(1);
+					//virtual joystick 
+					console.log("plugin");
+					console.log(Phaser)
+					this.pad = this.game.plugins.add(Phaser.VirtualJoystick);
+
+					this.stick = this.pad.addStick(180 , this.world.height - 150, 100,  'generic');
+					//this.stick.alignBottomLeft(40, 300);
+
+        			this.buttonA = this.pad.addButton(this.world.width - 130 , this.world.height - 140, 'generic', 'button1-up', 'button1-down');
+        			this.buttonA.onDown.add(this.actionButtonA.bind(null, this.socket), this);
 
 					//delay 
 					this.delayNetwork = this.delayMax ; 
 
-					// setting gyroscope update frequency
-			        gyro.frequency = 100;
-			        
+					
+
+					
 				}, 
 
 
 
 			    update: function () {
-			    	if(this.gyroTrack == true){
-			    		console.log("Start Track Gyro ");
-			    		gyro.startTracking(function(o) {
+			    	//repeat background
+					background.tilePosition.x = 0.5;
+					
+			    	var flag_delayAction = false ; 
+					if(this.delayNetwork <= this.delayMax){
+						this.delayNetwork += 5 ; 
+					}
 
-			          		//para le eje y -> o.beta
-			          		/*
-			          		
-			          		if(o.gamma < -1 || o.gamma > 1 ){
-			          			
-			          			WriteDebugText("Gamma Actual "+o.gamma );
-					          	localSocket.emit('PlayerGyroMove', {
-			                		gamma : o.gamma, 
-			                	});
-					          	if(gamma > 1){
-			                		moverColorBackground(2); 
-			                	}
-			                	else if(gamma < -1){
-			                		moverColorBackground(0); 
-			                	}
-			          		}
-			          		else{
-			          			moverColorBackground(0); 
-			          		}
-			          		*/
-				        });	
-				        this.gyroTrack = false ; 
-				        this.gyroOn = true ; 
-				        this.shakeTimer = this.time.now + this.shakeCD; 
-				        var gyroInformation = gyro.getOrientation() ; 
-				        this.acelerometroLast = {x :gyroInformation.x , y: gyroInformation.y , z: gyroInformation.z}
-			    	}
+					else{
+						this.delayNetwork = 0 ; 
+						flag_delayAction = true ; 
+					}
 
-			    	if(this.gyroOn){
-			    		var gyroInformation = gyro.getOrientation() ; 
-			    		if(this.time.now >= this.shakeTimer ){
-			    			
-			    			
-			    			var speedDevice = Math.abs(gyroInformation.x +gyroInformation.y + gyroInformation.z - (this.acelerometroLast.x+this.acelerometroLast.y+this.acelerometroLast.z) ) 
-			    			if(speedDevice > this.shakeTrashHold){
-			    				game.stage.backgroundColor = this.ColorBacgroundShake; 
-			    				this.OnShake(this.socket); 
-			    				//disparar
-			    			}else{
-			    				game.stage.backgroundColor = this.ColorBacground; 
-			    			}
-			    			this.shakeTimer = this.time.now + this.shakeCD; 
-			    			this.acelerometroLast = {x :gyroInformation.x , y: gyroInformation.y , z: gyroInformation.z}
-			    		}
-
-			    		if(gyroInformation.gamma >= 1 || gyroInformation.gamma <= -1){
-			    			this.socket.emit('PlayerGyroMove', {
-		                		gamma : gyroInformation.gamma, 
-		                	});
-			    		}
-			    		
-			    	}
-
+	                if ( flag_delayAction & this.stick.isDown)
+			        {
+			        	
+			        	this.socket.emit('PlayerVirtualJoystickMove', {
+	                		rotation : this.stick.rotation, 
+	                		force : this.stick.force,
+	                	});
+						
+	                	console.log("rotacion ->"); 
+	                	console.log(this.stick.rotation); 
+	                	console.log("force ->"); 
+	                	console.log(this.stick.force); 
+			        }
 			    }, 
-
-
-			    OnShake : function (socket) {
+			    actionButtonA: function (socket) {
 			        //Evento Precionar Boton A
+			        WriteDebugText("Button A Precionado");
 			        socket.emit('PlayerButtonA', {}); 
 			    },
 
 			}
 			game.state.add('Game', PhaserGame, true);
 
-			function moverColorBackground ( sentido ){
-				game.state.callbackContext.direccionSiguienteBackground = sentido; 
-			}
+			function WriteDebug ( speed, horizontal_direction , vertical_direction ){
+				var debugList = $("#ListaDebug"); 
+				var now = moment();
 
+				
+				var current_time = now.format("DD-MM-YYYY HH:mm:ss"); 
+				var string_html_debug = "<li>"+current_time+" : <b>Speed </b> ("+speed.x+","+speed.y+")"; 
+
+				switch(horizontal_direction){
+					case 0 : 
+						break ;
+					case 1 : 
+						string_html_debug += " Input <b>Izquierda</b> precionado | "; 
+						break ;
+					case 2 : 
+						string_html_debug += " Input <b>Derecha</b> precionado | "; 
+						break ;
+				}
+				switch(vertical_direction){
+					case 0 : 
+						break ;
+					case 1 : 
+						string_html_debug += " Input <b>Arriba</b> precionado | "; 
+						break ;
+					case 2 : 
+						string_html_debug += " Input <b>Abajo</b> precionado | "; 
+						break ;
+				}
+				string_html_debug += "</li>"; 
+
+				debugList.append(string_html_debug); 
+				debugList.animate({ scrollTop: debugList.prop('scrollHeight') }, 10);
+			}
 			function WriteDebugText(text){
 				var debugList = $("#ListaDebug"); 
 				var now = moment();
@@ -249,7 +270,6 @@
 				}
 				
 				console.log(game.state.callbackContext.socket); 
-				game.state.callbackContext.gyroTrack = true ; 
 			})
 		</script>
 	</body>

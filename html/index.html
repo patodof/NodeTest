@@ -64,7 +64,7 @@
 				    this.flagMovePlayerX = false;  
 				    this.flagMovePlayerY = false; 
 				    this.timerMovePlayer = 0 ; 
-				    this.timerMaxMovePlayer = 200 ; 
+				    this.timerMaxMovePlayer = 150 ; 
 
 				    //enemys
 				    this.enemys ; 
@@ -194,7 +194,7 @@
 				        	this.stateText.visible = false; 
 							this.stateText.text = '' ; 
 				        	var player_local = this.player  ; 
-							if(this.flagMovePlayerX || this.flagMovePlayerY ){
+							if(this.flagMovePlayerX  ){
 								if(this.timerMovePlayer < this.timerMaxMovePlayer){
 									this.timerMovePlayer += 10; 
 								}
@@ -355,13 +355,15 @@
 
 						game.timerMovePlayer = 0 ; 
 						
-						var factorMovimiento = 2 ; 
+						var factorMovimiento = 4; 
 						//var velocidad_y = 0 ; 
 
 						//fueza (force) maxima de virtual joystick es 1, es necesario agregar una correccion de velocidad 
 						//la velocidad maxima alcanzada por el otro joystick es de 100 
-						velocidad = 100 ; 
+						//velocidad = 100 ; 
+						velocidad = 1 ; 
 						var velocidadMovimiento = data.force*velocidad*factorMovimiento ; 
+						/*
 						if( data.rotation <= -1.5 & data.rotation >= -3.2 ){
 							// izquierda superior 
 							game.flagMovePlayerX = true ; 
@@ -378,6 +380,8 @@
 							game.flagMovePlayerX = true ; 
 
 						}
+						*/
+						game.flagMovePlayerX = true ; 
 						game.player.body.velocity.x  = velocidadMovimiento ; 
 
 						if(game.flag_game_over == true){
@@ -400,6 +404,7 @@
 						var velocidadMovimiento = data.gamma*factorMovimiento ; 
 						
 						game.player.body.velocity.x  = velocidadMovimiento ; 
+						game.flagMovePlayerX = true ; 
 
 						if(game.flag_game_over == true){
 							game.iniciarJuego(); 
